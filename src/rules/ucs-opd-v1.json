@@ -1,0 +1,14 @@
+{
+  "id": "MCH_UCS_OPD_V1",
+  "fund": "UCS",
+  "claimType": "OPD",
+  "version": "1.0.0",
+  "effectiveFrom": "2026-01-01",
+  "rules": [
+    { "id": "UCS-001", "field": "citizenId", "operator": "thaiCitizenId", "severity": "critical", "message": "เลขบัตรประชาชนไม่ครบถ้วนหรือไม่ผ่านการตรวจสอบ" },
+    { "id": "UCS-002", "field": "mainDiagnosis", "operator": "required", "severity": "critical", "message": "ไม่พบการวินิจฉัยหลัก" },
+    { "id": "UCS-003", "field": "pttype", "operator": "in", "value": ["01", "02", "03"], "severity": "critical", "message": "รหัสสิทธิไม่อยู่ในกลุ่มบัตรทองที่กำหนด" },
+    { "id": "UCS-004", "field": "amount", "operator": "greaterThan", "value": 0, "severity": "warning", "message": "ยอดค่าใช้จ่ายต้องมากกว่า 0 บาท" },
+    { "id": "UCS-005", "field": "authCode", "operator": "required", "severity": "warning", "message": "ไม่พบเลขยืนยันการตรวจสอบสิทธิ" }
+  ]
+}
