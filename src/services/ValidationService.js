@@ -1,12 +1,13 @@
 export class ValidationService {
-  constructor({ repository, engine, ruleset }) {
-    Object.assign(this, { repository, engine, ruleset });
+  constructor({ repository, engine, ruleset, governance = null }) {
+    Object.assign(this, { repository, engine, ruleset, governance });
   }
 
   async validateUcs(range) {
     const records = await this.repository.findUcsVisits(range);
     const pagination = records.pagination ?? { page: 1, pageSize: records.length, total: records.length, totalPages: 1 };
-    const cases = records.map(record => {
+    const cases = records.map(sourceRecord => {
+      const record = this.governance?.applyResolution(sourceRecord) ?? sourceRecord;
       const issues = this.engine.validate(record);
       const status = issues.some(i => i.severity === 'critical') ? 'blocked' : issues.length ? 'warning' : 'ready';
       return { ...record, status, issues };

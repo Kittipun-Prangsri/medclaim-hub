@@ -1,0 +1,4 @@
+interface:
+  display_name: "MedClaim Hub"
+  short_description: "พัฒนาและดูแลระบบเคลมโรงพยาบาลอย่างปลอดภัย"
+  default_prompt: "Use $medclaim-hub to safely implement the next MedClaim Hub feature and verify it without exposing patient data."

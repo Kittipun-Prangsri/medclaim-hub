@@ -87,5 +87,49 @@ export class HosxpRepository {
     return rows;
   }
 
+  async findVisitDetail(vn) {
+    const visitNumber = String(vn ?? '').trim();
+    if (!/^[A-Za-z0-9_-]{1,30}$/.test(visitNumber)) throw Object.assign(new Error('รูปแบบ VN ไม่ถูกต้อง'), { code: 'INVALID_VN', status: 400 });
+    try {
+      const [[visits], [diagnoses], [charges]] = await Promise.all([
+        this.pool.execute(`SELECT o.vn,o.hn,DATE_FORMAT(o.vstdate,'%Y-%m-%d') serviceDate,o.pttype,
+          COALESCE(p.cid,'') citizenId,TRIM(CONCAT_WS(' ',NULLIF(p.pname,''),NULLIF(p.fname,''),NULLIF(p.lname,''))) patientName
+          FROM ovst o INNER JOIN patient p ON p.hn=o.hn WHERE o.vn=? LIMIT 1`, [visitNumber]),
+        this.pool.execute('SELECT icd10,diagtype FROM ovstdiag WHERE vn=? ORDER BY diagtype,icd10', [visitNumber]),
+        this.pool.execute('SELECT icode,qty,unitprice,sum_price FROM opitemrece WHERE vn=? ORDER BY icode LIMIT 500', [visitNumber])
+      ]);
+      if (!visits[0]) throw Object.assign(new Error('ไม่พบ VN ที่ระบุ'), { code: 'VISIT_NOT_FOUND', status: 404 });
+      const visit = visits[0];
+      const authRows = await this.pool.execute(`SELECT MAX(claimcode) authCode,COUNT(DISTINCT claimcode) codeCount
+        FROM temp_authen_code WHERE cid=? AND DATE_SUB(DATE(date_service),INTERVAL 543 YEAR)=?
+        AND COALESCE(claimcode,'')<>''`, [visit.citizenId, visit.serviceDate]);
+      const auth = authRows[0][0] ?? {};
+      return { ...visit, authCode: Number(auth.codeCount) === 1 ? auth.authCode : '', authAmbiguous: Number(auth.codeCount) > 1,
+        diagnoses, charges: charges.map(item => ({ ...item, qty: Number(item.qty ?? 0), unitprice: Number(item.unitprice ?? 0), sum_price: Number(item.sum_price ?? 0) })) };
+    } catch (cause) {
+      if (cause.status) throw cause;
+      throw Object.assign(new Error(`อ่านรายละเอียด Claim ไม่สำเร็จ (${cause.code ?? 'UNKNOWN'})`), { code: 'HOSXP_DETAIL_FAILED', status: 503 });
+    }
+  }
+
+  async findAuthAmbiguities(input = {}) {
+    const range = dateRange(input), page = Math.max(1, Number(input.page) || 1), pageSize = Math.min(100, Math.max(1, Number(input.pageSize) || 20)), offset = (page - 1) * pageSize;
+    const base = `FROM ovst o INNER JOIN patient p ON p.hn=o.hn INNER JOIN temp_authen_code a ON a.cid=p.cid
+      AND DATE_SUB(DATE(a.date_service),INTERVAL 543 YEAR)=o.vstdate AND COALESCE(a.claimcode,'')<>''
+      WHERE o.vstdate BETWEEN ? AND ? GROUP BY o.vn,o.hn,o.vstdate,p.cid,p.pname,p.fname,p.lname HAVING COUNT(DISTINCT a.claimcode)>1`;
+    const [[countRows], [rows]] = await Promise.all([
+      this.pool.execute(`SELECT COUNT(*) total FROM (SELECT o.vn ${base}) x`, [range.from, range.to]),
+      this.pool.execute(`SELECT o.vn,o.hn,DATE_FORMAT(o.vstdate,'%Y-%m-%d') serviceDate,RIGHT(p.cid,4) cidLast4,
+        TRIM(CONCAT_WS(' ',p.pname,p.fname,p.lname)) patientName,COUNT(DISTINCT a.claimcode) candidateCount ${base} ORDER BY o.vstdate DESC LIMIT ? OFFSET ?`, [range.from, range.to, pageSize, offset])
+    ]); const total=Number(countRows[0]?.total??0); return { cases: rows, pagination:{page,pageSize,total,totalPages:Math.ceil(total/pageSize)} };
+  }
+  async findAuthCandidates(vn) {
+    const visitNumber=String(vn??'').trim(); if(!/^[A-Za-z0-9_-]{1,30}$/.test(visitNumber)) throw Object.assign(new Error('รูปแบบ VN ไม่ถูกต้อง'),{code:'INVALID_VN',status:400});
+    const [[visits]] = await Promise.all([this.pool.execute(`SELECT o.vn,o.hn,DATE_FORMAT(o.vstdate,'%Y-%m-%d') serviceDate,p.cid FROM ovst o INNER JOIN patient p ON p.hn=o.hn WHERE o.vn=? LIMIT 1`,[visitNumber])]);
+    if(!visits[0]) throw Object.assign(new Error('ไม่พบ VN'),{code:'VISIT_NOT_FOUND',status:404}); const v=visits[0];
+    const [rows]=await this.pool.execute(`SELECT DISTINCT claimcode FROM temp_authen_code WHERE cid=? AND DATE_SUB(DATE(date_service),INTERVAL 543 YEAR)=? AND COALESCE(claimcode,'')<>'' ORDER BY claimcode LIMIT 20`,[v.cid,v.serviceDate]);
+    return {vn:v.vn,hnMasked:`•••${String(v.hn).slice(-4)}`,serviceDate:v.serviceDate,candidates:rows.map(row=>row.claimcode)};
+  }
+
   async close() { await this.pool.end(); }
 }

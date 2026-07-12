@@ -36,6 +36,9 @@ npm test
 4. เมนู **กระทบยอด** บันทึกยอดรับชำระและดูส่วนต่าง
 5. เมนู **รายงาน** ดูสรุปและส่งออก CSV
 6. เมนู **ตั้งค่าระบบ** เปลี่ยนชื่อ/รหัสโรงพยาบาล ดูรุ่นและสถานะ Backend และกำหนดค่า HOSxP MySQL
+7. เมนู **กำกับ Claim/Rules** ตรวจ Auth Code กำกวมและดำเนิน Rules Draft → Review → Approved โดยไม่เขียนกลับ HOSxP
+
+Provider ID UAT และ FDH จริงถูกพักไว้ตามขอบเขตปัจจุบัน ระบบยังใช้ Provider ID Mock และ FDH workflow จำลอง
 
 ## Provider ID Login Mock
 

@@ -11,6 +11,7 @@ import { HosxpRepository } from './repositories/HosxpRepository.js';
 import { ClaimWorkflowService } from './services/ClaimWorkflowService.js';
 import { SystemSettingsService } from './services/SystemSettingsService.js';
 import { AuthService } from './services/AuthService.js';
+import { GovernanceService } from './services/GovernanceService.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url));
 const configuredRuleset = structuredClone(ruleset);
@@ -21,7 +22,8 @@ const repository = dataSource === 'hosxp' ? new HosxpRepository({
   host: process.env.HOSXP_DB_HOST, port: Number(process.env.HOSXP_DB_PORT ?? 3306), database: process.env.HOSXP_DB_NAME,
   user: process.env.HOSXP_DB_USER, password: process.env.HOSXP_DB_PASSWORD, ssl: process.env.HOSXP_DB_SSL === 'true'
 }) : new DemoClaimRepository();
-const service = new ValidationService({ repository, engine: new RulesEngine(configuredRuleset), ruleset: configuredRuleset });
+export const governance = new GovernanceService({ repository, ruleset: configuredRuleset });
+const service = new ValidationService({ repository, engine: new RulesEngine(configuredRuleset), ruleset: configuredRuleset, governance });
 export const workflow = new ClaimWorkflowService({ validationService: service });
 export const systemSettings = new SystemSettingsService();
 export const auth = new AuthService();
@@ -61,6 +63,16 @@ export async function handler(request, response) {
     if (url.pathname === '/api/v1/settings/database/schema' && request.method === 'GET') { requirePermission('settings:manage'); if (!repository.inspectSchema) throw Object.assign(new Error('กรุณาเปิด CLAIM_DATA_SOURCE=hosxp'), { status: 400, code: 'HOSXP_NOT_ENABLED' }); return json(response, 200, { database: process.env.HOSXP_DB_NAME, columns: await repository.inspectSchema() }); }
     if (url.pathname === '/api/v1/dashboard') return json(response, 200, await workflow.dashboard(range(url)));
     if (url.pathname === '/api/v1/validate/ucs') return json(response, 200, await service.validateUcs(validationOptions(url)));
+    const claimDetail = url.pathname.match(/^\/api\/v1\/claims\/([A-Za-z0-9_-]+)$/);
+    if (claimDetail && request.method === 'GET') { requirePermission('claims:read'); return json(response, 200, await repository.findVisitDetail(claimDetail[1])); }
+    if (url.pathname === '/api/v1/governance/auth-ambiguities' && request.method === 'GET') { requirePermission('auth:read'); return json(response, 200, await governance.listAmbiguities(validationOptions(url))); }
+    const authCandidates = url.pathname.match(/^\/api\/v1\/governance\/auth-ambiguities\/([A-Za-z0-9_-]+)$/);
+    if (authCandidates && request.method === 'GET') { requirePermission('auth:resolve'); return json(response, 200, await governance.candidates(authCandidates[1])); }
+    if (authCandidates && request.method === 'POST') { requirePermission('auth:resolve'); return json(response, 200, await governance.resolve(authCandidates[1], (await body(request)).claimCode, user)); }
+    if (url.pathname === '/api/v1/governance/rules' && request.method === 'GET') { requirePermission('rules:read'); return json(response, 200, governance.listRules()); }
+    if (url.pathname === '/api/v1/governance/rules' && request.method === 'POST') { requirePermission('rules:approve'); return json(response, 201, governance.createDraft(await body(request), user)); }
+    const ruleAction = url.pathname.match(/^\/api\/v1\/governance\/rules\/([^/]+)\/(submit|approve|reject)$/);
+    if (ruleAction && request.method === 'POST') { requirePermission('rules:approve'); return json(response, 200, governance.transition(ruleAction[1], ruleAction[2], user)); }
     if (url.pathname === '/api/v1/batches' && request.method === 'GET') return json(response, 200, workflow.listBatches());
     if (url.pathname === '/api/v1/batches' && request.method === 'POST') { requirePermission('batches:create'); return json(response, 201, await workflow.createBatch(await body(request))); }
     const submit = url.pathname.match(/^\/api\/v1\/batches\/([^/]+)\/submit$/);

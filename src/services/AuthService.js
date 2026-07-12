@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 export const ROLE_PERMISSIONS = {
-  claim_officer: ['dashboard:read', 'claims:read', 'batches:create'],
-  reviewer: ['dashboard:read', 'claims:read', 'batches:read', 'batches:submit', 'responses:manage'],
+  claim_officer: ['dashboard:read', 'claims:read', 'batches:create', 'auth:read'],
+  reviewer: ['dashboard:read', 'claims:read', 'batches:read', 'batches:submit', 'responses:manage', 'auth:read', 'auth:resolve', 'rules:read', 'rules:approve'],
   finance: ['dashboard:read', 'batches:read', 'responses:read', 'reconciliation:manage', 'reports:read'],
-  auditor: ['dashboard:read', 'claims:read', 'batches:read', 'responses:read', 'reconciliation:read', 'reports:read'],
+  auditor: ['dashboard:read', 'claims:read', 'batches:read', 'responses:read', 'reconciliation:read', 'reports:read', 'auth:read', 'rules:read'],
   admin: ['*']
 };
 

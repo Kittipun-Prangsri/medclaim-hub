@@ -45,3 +45,8 @@ test('schema mismatch returns a safe actionable error', async () => {
     error => error.code === 'HOSXP_SCHEMA_MISMATCH' && !error.message.includes('password')
   );
 });
+
+test('rejects unsafe VN before querying HOSxP', async () => {
+  const repository = new HosxpRepository({ database: 'hos' }, { pool: { execute: async () => { throw new Error('must not query'); } } });
+  await assert.rejects(repository.findVisitDetail("VN' OR 1=1"), error => error.code === 'INVALID_VN');
+});

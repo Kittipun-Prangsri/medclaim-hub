@@ -13,4 +13,7 @@ export class DemoClaimRepository {
     result.pagination = { page: 1, pageSize: result.length, total: result.length, totalPages: 1, query: search };
     return result;
   }
+  async findVisitDetail(vn) { const visit = records.find(item => item.vn === vn); if (!visit) throw Object.assign(new Error('ไม่พบ VN ที่ระบุ'), { code: 'VISIT_NOT_FOUND', status: 404 }); return { ...visit, authAmbiguous: false, diagnoses: [{ icd10: visit.mainDiagnosis, diagtype: '1' }], charges: [{ icode: 'DEMO', qty: 1, unitprice: visit.amount, sum_price: visit.amount }] }; }
+  async findAuthAmbiguities() { return { cases: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } }; }
+  async findAuthCandidates(vn) { const visit = records.find(item => item.vn === vn); if (!visit) throw Object.assign(new Error('ไม่พบ VN'), { code: 'VISIT_NOT_FOUND', status: 404 }); return { vn, hnMasked: `•••${visit.hn.slice(-4)}`, serviceDate: visit.serviceDate, candidates: ['DEMO-AUTH-1', 'DEMO-AUTH-2'] }; }
 }
