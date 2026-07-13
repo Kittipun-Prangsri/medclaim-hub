@@ -13,7 +13,7 @@ try {
     const key = line.slice(0, separator).trim();
     let value = line.slice(separator + 1).trim();
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    if (process.env[key] === undefined) process.env[key] = value;
+    process.env[key] = value;
   }
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
