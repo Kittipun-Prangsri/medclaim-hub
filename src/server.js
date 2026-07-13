@@ -92,8 +92,9 @@ export async function handler(request, response) {
   const file = normalize(join(root, requested));
   if (!file.startsWith(root)) return json(response, 403, { error: 'FORBIDDEN' });
   try {
+    const data = await readFile(file);
     response.writeHead(200, { 'content-type': mime[extname(file)] ?? 'application/octet-stream' });
-    response.end(await readFile(file));
+    response.end(data);
   } catch {
     json(response, 404, { error: 'NOT_FOUND' });
   }
