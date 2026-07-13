@@ -3,7 +3,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ruleset from './rules/ucs-opd-v1.json' assert { type: 'json' };
+import { networkInterfaces } from 'node:os';
+import ruleset from './rules/ucs-opd-v1.json' with { type: 'json' };
 import { RulesEngine } from './services/RulesEngine.js';
 import { ValidationService } from './services/ValidationService.js';
 import { DemoClaimRepository } from './repositories/DemoClaimRepository.js';
@@ -98,8 +99,28 @@ export async function handler(request, response) {
   }
 }
 
+function getLocalIp() {
+  const interfaces = networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return null;
+}
+
 export function start(port = Number(process.env.PORT ?? 4100)) {
-  return createServer(handler).listen(port, '127.0.0.1', () => console.log(`MedClaim Hub: http://localhost:${port}`));
+  const host = process.env.HOST ?? '0.0.0.0';
+  return createServer(handler).listen(port, host, () => {
+    console.log(`MedClaim Hub:`);
+    console.log(`  - Local:   http://localhost:${port}`);
+    const localIp = getLocalIp();
+    if (localIp) {
+      console.log(`  - Network: http://${localIp}:${port}`);
+    }
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) start();

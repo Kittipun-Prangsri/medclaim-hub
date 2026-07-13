@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import ruleset from '../src/rules/ucs-opd-v1.json' assert {type:'json'};
+import ruleset from '../src/rules/ucs-opd-v1.json' with {type:'json'};
 import {RulesEngine} from '../src/services/RulesEngine.js';
 const engine=new RulesEngine(ruleset);
 test('valid UCS visit has no issues',()=>{assert.deepEqual(engine.validate({citizenId:'1101700203450',mainDiagnosis:'J00',pttype:'01',amount:100,authCode:'A1'}),[])});
